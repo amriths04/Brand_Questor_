@@ -1,0 +1,28 @@
+# Node.js specific
+/node_modules/
+/npm-debug.log
+/package-lock.json
+/yarn.lock
+
+# Environment files
+.env
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Frontend build folder (React)
+frontend/build/
+
+# Backend build folder (if using transpiling like Babel, TypeScript, etc.)
+backend/dist/
+
+# IDE specific files (VS Code)
+.vscode/
+.idea/
+
+# MacOS Finder metadata
+*.swp
