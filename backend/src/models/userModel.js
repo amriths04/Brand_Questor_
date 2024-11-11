@@ -13,6 +13,7 @@ const User = sequelize.define('User', {
   username: Sequelize.STRING,
   email: Sequelize.STRING,
   password_hash: Sequelize.STRING,
+  salt: Sequelize.STRING,
   preferences: Sequelize.JSONB,
   avatar_url: Sequelize.STRING,
   bio: Sequelize.STRING,
