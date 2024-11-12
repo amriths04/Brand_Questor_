@@ -1,5 +1,6 @@
 import User from '../models/userModel.js';
 import { verifyPassword,encryptPassword } from '../../src/utils/passwordUtils.js';
+import { generateAccessToken, verifyRefreshToken,generateRefreshToken,verifyAccessToken } from '../../src/utils/jwtUtils.js';
 
 export const getUserProfile = async (req, res) => {
   try {
@@ -39,54 +40,80 @@ export const createUser = async (req, res) => {
   try {
     const { username, email, password, preferences, bio, avatar_url } = req.body;
 
-    const { hash, salt } = encryptPassword(password);
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({ message: 'Email already exists' });
+    }
   
-    const user = await User.create({
-      username,
-      email,
-      password_hash: hash,
-      salt,
-      preferences,
-      bio,
-      avatar_url,
-    });
+      const { hash, salt } = encryptPassword(password);
   
-    res.status(201).json({
-      message: 'User created successfully',
-      user_id: user.user_id,
-      username: user.username,
-      email: user.email,
-      salt, // Store the unique salt
-      preferences: user.preferences,
-      bio: user.bio,
-      avatar_url: user.avatar_url,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
+      const user = await User.create({
+        username,
+        email,
+        password_hash: hash,
+        salt,
+        preferences,
+        bio,
+        avatar_url,
+      });
   
-export const loginUser = async (req, res) => {
+      res.status(201).json({
+        message: 'User created successfully',
+        user_id: user.user_id,
+        username: user.username,
+        email: user.email,
+        preferences: user.preferences,
+        bio: user.bio,
+        avatar_url: user.avatar_url,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  }; 
+  export const loginUser = async (req, res) => {
+    
+    try {
+      const { email, password } = req.body;
+      const user = await User.findOne({ where: { email } });
   
-try {
-  const { email, password } = req.body;
-  const user = await User.findOne({ where: { email } });
+      if (!user) 
+        return res.status(404).json({ message: 'User not found' });
+    
+      const isValidPassword = verifyPassword(password, user.password_hash, user.salt); 
+  
+      if (!isValidPassword) 
+        return res.status(401).json({ message: 'Invalid credentials' });
+  
+      const accessToken = generateAccessToken(user.user_id);
+      const refreshToken = generateRefreshToken(user.user_id);
+  
+      res.json({
+        message: 'Login successful',
+        user_id: user.user_id,
+        username: user.username,
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  };
 
-  if (!user) 
-    return res.status(404).json({ message: 'User not found' });
+  export const refreshToken = (req, res) => {
+    const { refresh_token } = req.body;
   
-  const isValidPassword = verifyPassword(password, user.password_hash, user.salt); 
-
-  if (!isValidPassword) 
-    return res.status(401).json({ message: 'Invalid credentials' });
-
-  res
-  .json({ message: 'Login successful', user_id: user.user_id }); 
-
-} catch (error) {
+    if (!refresh_token) {
+      return res.status(400).json({ message: 'Refresh token is required' });
+    }
   
-  console.error(error);
-  res.status(500).json({ message: 'Server error' });
-  }
-};
+    try {
+      const decoded = verifyRefreshToken(refresh_token);
+      const accessToken = generateAccessToken(decoded.userId);
+      res.json({ access_token: accessToken });
+    } catch (error) {
+      console.error(error);
+      res.status(403).json({ message: 'Invalid or expired refresh token' });
+    }
+  };
